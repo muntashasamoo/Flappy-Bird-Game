@@ -1,0 +1,171 @@
+import java.awt.Color;
+import java.awt.Graphics;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
+import java.util.ArrayList;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.Timer;
+
+public class FlappyBird extends JFrame {
+    private static final int WIDTH = 400;
+    private static final int HEIGHT = 600;
+    private static final int BIRD_WIDTH = 30;
+    private static final int BIRD_HEIGHT = 24;
+    private static final int PIPE_WIDTH = 50;
+    private static final int PIPE_GAP = 150;
+
+    private Bird bird;
+    private ArrayList<Pipe> pipes;
+    private int score;
+    private boolean isGameOver;
+
+    public FlappyBird() {
+        setTitle("Flappy Bird");
+        setSize(WIDTH, HEIGHT);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        bird = new Bird();
+        pipes = new ArrayList<>();
+        score = 0;
+        isGameOver = false;
+
+        GamePanel gamePanel = new GamePanel();
+        add(gamePanel);
+        setVisible(true);
+        gamePanel.start();
+    }
+
+    private class Bird {
+        private int x = WIDTH / 4;
+        private int y = HEIGHT / 2;
+        private int velocity = 0;
+
+        public void update() {
+            y += velocity;
+            velocity += 1; // Gravity
+            if (y + BIRD_HEIGHT >= HEIGHT) {
+                isGameOver = true;
+            }
+        }
+
+        public void flap() {
+            velocity = -10;
+        }
+
+        public void draw(Graphics g) {
+            g.setColor(Color.YELLOW);
+            g.fillRect(x, y, BIRD_WIDTH, BIRD_HEIGHT);
+        }
+    }
+
+    private class Pipe {
+        private int x = WIDTH;
+        private int y = (int) (Math.random() * (HEIGHT - PIPE_GAP - 100)); // Adjusted to prevent off-screen pipes
+
+        public void update() {
+            x -= 5;
+            if (x + PIPE_WIDTH < 0) {
+                pipes.remove(this);
+                score++;
+            }
+        }
+
+        public void draw(Graphics g) {
+            g.setColor(Color.GREEN);
+            g.fillRect(x, 0, PIPE_WIDTH, y); // Upper pipe
+            g.fillRect(x, y + PIPE_GAP, PIPE_WIDTH, HEIGHT - y - PIPE_GAP); // Lower pipe
+        }
+    }
+
+    private class GamePanel extends JPanel implements ActionListener {
+        private Timer timer;
+
+        public GamePanel() {
+            setFocusable(true);
+            requestFocusInWindow();
+
+            timer = new Timer(20, this);
+
+            addKeyListener(new KeyAdapter() {
+                @Override
+                public void keyPressed(KeyEvent e) {
+                    if (e.getKeyCode() == KeyEvent.VK_SPACE && !isGameOver) {
+                        bird.flap();
+                    }
+                }
+            });
+        }
+
+        public void start() {
+            timer.start();
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+
+            // Background
+            g.setColor(Color.WHITE);
+            g.fillRect(0, 0, WIDTH, HEIGHT);
+
+            // Draw bird
+            bird.draw(g);
+
+            // Draw pipes
+            for (Pipe pipe : pipes) {
+                pipe.draw(g);
+            }
+
+            // Score
+            g.setColor(Color.BLACK);
+            g.drawString("Score: " + score, 20, 20);
+
+            // Game over message
+            if (isGameOver) {
+                g.drawString("Game Over", WIDTH / 2 - 40, HEIGHT / 2);
+            }
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (!isGameOver) {
+                updateGame();
+                repaint();
+            }
+        }
+
+        private void updateGame() {
+            bird.update();
+
+            // Update pipes and check for collisions
+            ArrayList<Pipe> pipesCopy = new ArrayList<>(pipes);
+            for (Pipe pipe : pipesCopy) {
+                pipe.update();
+
+                boolean birdHitsPipe = bird.x + BIRD_WIDTH > pipe.x && bird.x < pipe.x + PIPE_WIDTH &&
+                        (bird.y < pipe.y || bird.y + BIRD_HEIGHT > pipe.y + PIPE_GAP);
+
+                if (birdHitsPipe) {
+                    isGameOver = true;
+                }
+            }
+
+            // Generate new pipes
+            if (pipes.isEmpty() || pipes.get(pipes.size() - 1).x + PIPE_WIDTH < WIDTH / 2) {
+                generatePipe();
+            }
+        }
+
+        private void generatePipe() {
+            pipes.add(new Pipe());
+        }
+    }
+
+    public static void main(String[] args) {
+        new FlappyBird();
+    }
+}
